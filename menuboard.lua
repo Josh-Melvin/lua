@@ -7,6 +7,8 @@
   * Built-in editor with form fields for every block, a style editor
     (colors, alignment, decorations, spacing) and live previews.
   * Data is saved to /home/menu.dat and survives reboots.
+  * Uses a fixed palette of 8 colors (Black, White, Light Gray, Dark Gray,
+    Red, Yellow, Green, Blue) for every screen, including the editor.
 
   Needs: OpenOS, GPU + screen (Tier 3 recommended), keyboard on screen.
 
@@ -43,31 +45,77 @@ local DATA_FILE = shell.resolve(cliArgs[1] or "/home/menu.dat")
 ---------------------------------------------------------------------------
 -- Colors (stored by name in the data file)
 ---------------------------------------------------------------------------
+-- Exactly 8 colors. They are taken from the Tier 2 GPU palette, so the
+-- board looks the same on Tier 2 and Tier 3 hardware.
+local BLACK, WHITE, LGRAY, DGRAY = 0x000000, 0xFFFFFF, 0xCCCCCC, 0x333333
+local RED, YELLOW, GREEN, BLUE   = 0xFF3333, 0xFFCC33, 0x33CC33, 0x6699FF
+
 local COLOR_LIST = {
-  { "Black", 0x000000 }, { "White", 0xFFFFFF }, { "Light Gray", 0xC3C3C3 },
-  { "Gray", 0x878787 }, { "Dark Gray", 0x3C3C3C }, { "Red", 0xFF3333 },
-  { "Dark Red", 0x990000 }, { "Maroon", 0x4D0000 }, { "Orange", 0xFF8C1A },
-  { "Yellow", 0xFFDB00 }, { "Gold", 0xCC9900 }, { "Cream", 0xFFF2CC },
-  { "Brown", 0x804D1A }, { "Lime", 0x99FF33 }, { "Green", 0x2DA02D },
-  { "Dark Green", 0x0F4D0F }, { "Cyan", 0x33CCFF }, { "Blue", 0x3366FF },
-  { "Navy", 0x0A1A4D }, { "Purple", 0x9933FF }, { "Magenta", 0xFF33CC },
-  { "Pink", 0xFF99B4 },
+  { "Black", BLACK }, { "White", WHITE }, { "Light Gray", LGRAY }, { "Dark Gray", DGRAY },
+  { "Red", RED }, { "Yellow", YELLOW }, { "Green", GREEN }, { "Blue", BLUE },
 }
-local COLOR_NAMES, COLOR_MAP = {}, {}
+local COLOR_NAMES, COLOR_MAP, NAME_OF = {}, {}, {}
 for _, c in ipairs(COLOR_LIST) do
   COLOR_NAMES[#COLOR_NAMES + 1] = c[1]
   COLOR_MAP[c[1]] = c[2]
+  NAME_OF[c[2]] = c[1]
 end
 local BG_NAMES = { "None" }
 for _, name in ipairs(COLOR_NAMES) do BG_NAMES[#BG_NAMES + 1] = name end
 
--- Resolve a color name ("Yellow"), "#RRGGBB" or number. "None" -> fallback.
+-- Color names used by older versions of this program -> closest of the 8.
+local OLD_NAMES = {
+  ["Gray"] = "Light Gray", ["Dark Red"] = "Red", ["Maroon"] = "Red", ["Orange"] = "Yellow",
+  ["Gold"] = "Yellow", ["Cream"] = "White", ["Brown"] = "Dark Gray", ["Lime"] = "Green",
+  ["Dark Green"] = "Green", ["Cyan"] = "Blue", ["Navy"] = "Blue", ["Purple"] = "Blue",
+  ["Magenta"] = "Red", ["Pink"] = "Red",
+}
+
+-- Any RGB value -> the nearest of the 8 palette colors.
+local SNAP_CACHE = {}
+local function snap(c)
+  c = math.floor(c)
+  local hit = SNAP_CACHE[c]
+  if hit then return hit end
+  local r, g, b = math.floor(c / 65536) % 256, math.floor(c / 256) % 256, c % 256
+  local best, bestD = BLACK, math.huge
+  for _, e in ipairs(COLOR_LIST) do
+    local p = e[2]
+    local pr, pg, pb = math.floor(p / 65536) % 256, math.floor(p / 256) % 256, p % 256
+    local d = 3 * (r - pr) ^ 2 + 4 * (g - pg) ^ 2 + 2 * (b - pb) ^ 2
+    if d < bestD then best, bestD = p, d end
+  end
+  SNAP_CACHE[c] = best
+  return best
+end
+
+-- Resolve a color name ("Yellow"), "#RRGGBB" or number to one of the 8.
+-- "None" -> fallback.
 local function col(name, fallback)
   if name == nil or name == "None" then return fallback end
-  if type(name) == "number" then return name end
+  if type(name) == "number" then return snap(name) end
+  name = OLD_NAMES[name] or name
   if COLOR_MAP[name] then return COLOR_MAP[name] end
   local hex = tostring(name):match("^#?(%x%x%x%x%x%x)$")
-  return hex and tonumber(hex, 16) or fallback
+  return hex and snap(tonumber(hex, 16)) or fallback
+end
+
+-- Rewrite color names saved by older versions so the editor shows them.
+local function normalizeName(v)
+  if type(v) ~= "string" or v == "None" or COLOR_MAP[v] then return v end
+  if OLD_NAMES[v] then return OLD_NAMES[v] end
+  local hex = v:match("^#?(%x%x%x%x%x%x)$")
+  if hex then return NAME_OF[snap(tonumber(hex, 16))] end
+  return v
+end
+
+local function normalizeColors(m)
+  m.settings.background = normalizeName(m.settings.background)
+  for _, st in pairs(m.styles) do
+    if type(st) == "table" then
+      for k, v in pairs(st) do st[k] = normalizeName(v) end
+    end
+  end
 end
 
 ---------------------------------------------------------------------------
@@ -148,17 +196,17 @@ end
 -- Block types
 ---------------------------------------------------------------------------
 local TYPES = {
-  item      = { label = "Menu item",    short = "ITEM",  color = 0xFFFFFF, desc = "name, price, description, badge" },
-  h1        = { label = "Heading 1",    short = "H1",    color = 0xFFDB00, desc = "big headline in block letters" },
-  h2        = { label = "Heading 2",    short = "H2",    color = 0xFFDB00, desc = "section header, e.g. BURGERS" },
-  h3        = { label = "Heading 3",    short = "H3",    color = 0xFF8C1A, desc = "small sub-header" },
-  paragraph = { label = "Paragraph",    short = "TEXT",  color = 0xC3C3C3, desc = "wrapped body text" },
-  note      = { label = "Note box",     short = "NOTE",  color = 0x33CCFF, desc = "highlighted callout text" },
-  divider   = { label = "Divider",      short = "LINE",  color = 0x878787, desc = "horizontal line" },
-  spacer    = { label = "Spacer",       short = "GAP",   color = 0x878787, desc = "one empty line" },
-  colbreak  = { label = "Column break", short = "BREAK", color = 0xFF99B4, desc = "continue in the next column/page" },
+  item      = { label = "Menu item",    short = "ITEM",  color = WHITE, desc = "name, price, description, badge" },
+  h1        = { label = "Heading 1",    short = "H1",    color = YELLOW, desc = "big headline in block letters" },
+  h2        = { label = "Heading 2",    short = "H2",    color = YELLOW, desc = "section header, e.g. BURGERS" },
+  h3        = { label = "Heading 3",    short = "H3",    color = YELLOW, desc = "small sub-header" },
+  paragraph = { label = "Paragraph",    short = "TEXT",  color = LGRAY, desc = "wrapped body text" },
+  note      = { label = "Note box",     short = "NOTE",  color = BLUE, desc = "highlighted callout text" },
+  divider   = { label = "Divider",      short = "LINE",  color = LGRAY, desc = "horizontal line" },
+  spacer    = { label = "Spacer",       short = "GAP",   color = LGRAY, desc = "one empty line" },
+  colbreak  = { label = "Column break", short = "BREAK", color = RED, desc = "continue in the next column/page" },
 }
-local UNKNOWN_TYPE = { label = "Unknown", short = "?", color = 0xFF3333, desc = "" }
+local UNKNOWN_TYPE = { label = "Unknown", short = "?", color = RED, desc = "" }
 local TYPE_ORDER = { "item", "h2", "h3", "h1", "paragraph", "note", "divider", "spacer", "colbreak" }
 local TEXT_TYPES = { "h1", "h2", "h3", "paragraph", "note" }
 local TEXT_SET, TYPE_LABELS = {}, {}
@@ -187,14 +235,14 @@ local DEFAULT_MENU = {
     pin = "",
   },
   styles = {
-    banner    = { fg = "Yellow", bg = "Dark Red", subFg = "White", size = "auto", align = "center" },
-    h1        = { fg = "Yellow", bg = "None", align = "center", decor = "plain", lineFg = "Orange", big = true, upper = true, space = 1 },
+    banner    = { fg = "Yellow", bg = "Red", subFg = "White", size = "auto", align = "center" },
+    h1        = { fg = "Yellow", bg = "None", align = "center", decor = "plain", lineFg = "Red", big = true, upper = true, space = 1 },
     h2        = { fg = "Black", bg = "Yellow", align = "left", decor = "bar", lineFg = "Yellow", big = false, upper = true, space = 1 },
-    h3        = { fg = "Orange", bg = "None", align = "left", decor = "underline", lineFg = "Dark Gray", big = false, upper = false, space = 1 },
+    h3        = { fg = "Yellow", bg = "None", align = "left", decor = "underline", lineFg = "Dark Gray", big = false, upper = false, space = 1 },
     paragraph = { fg = "Light Gray", bg = "None", align = "left", indent = 0, padding = false, space = 0 },
-    note      = { fg = "Black", bg = "Cream", align = "center", indent = 1, padding = true, space = 1 },
-    item      = { nameFg = "White", priceFg = "Yellow", descFg = "Gray", leader = ".", leaderFg = "Dark Gray",
-                  tagFg = "Black", tagBg = "Lime", soldFg = "Red", upper = false, descIndent = 2, space = 0 },
+    note      = { fg = "Black", bg = "White", align = "center", indent = 1, padding = true, space = 1 },
+    item      = { nameFg = "White", priceFg = "Yellow", descFg = "Light Gray", leader = ".", leaderFg = "Dark Gray",
+                  tagFg = "Black", tagBg = "Green", soldFg = "Red", upper = false, descIndent = 2, space = 0 },
     divider   = { fg = "Dark Gray", char = "─", space = 0 },
     footer    = { fg = "Black", bg = "Yellow", align = "center" },
   },
@@ -276,7 +324,11 @@ local function loadMenu()
     local s = f:read("*a")
     f:close()
     local ok, t = pcall(serialization.unserialize, s)
-    if ok and type(t) == "table" then return mergeDefaults(t, DEFAULT_MENU), true end
+    if ok and type(t) == "table" then
+      mergeDefaults(t, DEFAULT_MENU)
+      normalizeColors(t)
+      return t, true
+    end
   end
   return deepcopy(DEFAULT_MENU), false
 end
@@ -296,8 +348,8 @@ end
 ---------------------------------------------------------------------------
 local curFg, curBg
 local function resetColors() curFg, curBg = nil, nil end
-local function setFg(c) if c ~= curFg then gpu.setForeground(c); curFg = c end end
-local function setBg(c) if c ~= curBg then gpu.setBackground(c); curBg = c end end
+local function setFg(c) c = snap(c); if c ~= curFg then gpu.setForeground(c); curFg = c end end
+local function setBg(c) c = snap(c); if c ~= curBg then gpu.setBackground(c); curBg = c end end
 
 local function put(x, y, s, fg, bg)
   if s == nil or s == "" then return end
@@ -419,7 +471,7 @@ local function headingLines(b, st, w, pageBg)
   if text == "" then return lines end
   blankLines(lines, st.space)
   if st.upper then text = unicode.upper(text) end
-  local fg = col(st.fg, 0xFFFFFF)
+  local fg = col(st.fg, WHITE)
   local bgSet = st.bg ~= nil and st.bg ~= "None"
   local bg = col(st.bg, pageBg)
   local lineFg = col(st.lineFg, fg)
@@ -501,7 +553,7 @@ local function paragraphLines(b, st, w, pageBg)
   local lines = {}
   if trim(b.text) == "" then return lines end
   blankLines(lines, st.space)
-  local fg = col(st.fg, 0xC3C3C3)
+  local fg = col(st.fg, LGRAY)
   local bgSet = st.bg ~= nil and st.bg ~= "None"
   local bg = col(st.bg, pageBg)
   local fillBg = bgSet and bg or nil
@@ -522,12 +574,12 @@ local function itemLines(b, m, w, pageBg)
   local st = m.styles.item
   local lines = {}
   blankLines(lines, st.space)
-  local nameFg = col(st.nameFg, 0xFFFFFF)
-  local priceFg = col(st.priceFg, 0xFFDB00)
-  local descFg = col(st.descFg, 0x878787)
+  local nameFg = col(st.nameFg, WHITE)
+  local priceFg = col(st.priceFg, YELLOW)
+  local descFg = col(st.descFg, LGRAY)
   local price = formatPrice(b.price, m.settings)
   if b.soldOut then
-    price, priceFg, nameFg = "SOLD OUT", col(st.soldFg, 0xFF3333), descFg
+    price, priceFg, nameFg = "SOLD OUT", col(st.soldFg, RED), descFg
   end
   if ulen(price) > w then price = usub(price, 1, w) end
   local name = trim(b.name)
@@ -556,7 +608,7 @@ local function itemLines(b, m, w, pageBg)
   local endX = ulen(last)
   if tw > 0 then
     local tx = endX + (endX > 0 and 2 or 1)
-    seg(ln, tx, tag, col(st.tagFg, 0x000000), col(st.tagBg, 0x99FF33))
+    seg(ln, tx, tag, col(st.tagFg, BLACK), col(st.tagBg, GREEN))
     endX = tx + tw - 1
   end
   if pw > 0 then
@@ -591,7 +643,7 @@ local function dividerLines(b, m, w, pageBg)
   local lines = {}
   blankLines(lines, st.space)
   local ln = mkLine()
-  seg(ln, 1, string.rep(st.char or "─", w), col(st.fg, 0x3C3C3C), pageBg)
+  seg(ln, 1, string.rep(st.char or "─", w), col(st.fg, DGRAY), pageBg)
   lines[#lines + 1] = ln
   for _ = 1, tonumber(st.space) or 0 do lines[#lines + 1] = mkLine() end
   return lines
@@ -616,7 +668,7 @@ local function headerLines(m, W, H, pageBg)
   local lines = {}
   local title, sub = trim(s.title), trim(s.subtitle)
   if title == "" and sub == "" then return lines end
-  local fg, bg, subFg = col(st.fg, 0xFFDB00), col(st.bg, pageBg), col(st.subFg, 0xFFFFFF)
+  local fg, bg, subFg = col(st.fg, YELLOW), col(st.bg, pageBg), col(st.subFg, WHITE)
   local align, inner = st.align or "center", W - 4
   local function fits(sc) return title ~= "" and bigTextWidth(title, sc) <= inner end
   local size, scale = st.size or "auto", nil
@@ -663,7 +715,7 @@ end
 
 local function footerLine(m, W, pageText)
   local st = m.styles.footer
-  local fg, bg = col(st.fg, 0x000000), col(st.bg, 0xFFDB00)
+  local fg, bg = col(st.fg, BLACK), col(st.bg, YELLOW)
   local ln = mkLine(bg)
   local pw = pageText and ulen(pageText) or 0
   local avail = W - 2 - (pw > 0 and pw + 2 or 0)
@@ -702,7 +754,7 @@ local function leadingMargins(lines)
 end
 
 local function buildLayout(m, W, H)
-  local pageBg = col(m.settings.background, 0x000000)
+  local pageBg = col(m.settings.background, BLACK)
   local header = headerLines(m, W, H, pageBg)
   local n, colW, margin, gutter = columnSetup(m, W)
 
@@ -794,7 +846,7 @@ local function drawPage(L, p, m)
     for i, ln in ipairs(page[c] or {}) do drawLine(ln, x0, top + i - 1, L.colW) end
     if m.settings.colLines and c < L.n then
       local sx = x0 + L.colW + math.floor(L.gutter / 2)
-      fill(sx, top, 1, L.bodyH, L.pageBg, "│", col(m.styles.divider.fg, 0x3C3C3C))
+      fill(sx, top, 1, L.bodyH, L.pageBg, "│", col(m.styles.divider.fg, DGRAY))
     end
   end
   if L.footer then
@@ -809,15 +861,15 @@ end
 local UI = {}
 local function initUI()
   if gpu.getDepth() <= 1 then
-    UI = { bg = 0x000000, fg = 0xFFFFFF, dim = 0xFFFFFF, accent = 0xFFFFFF, bar = 0xFFFFFF, barFg = 0x000000,
-           selBg = 0xFFFFFF, selFg = 0x000000, field = 0x000000, fieldFg = 0xFFFFFF, focus = 0xFFFFFF,
-           focusFg = 0x000000, btn = 0x000000, btnFg = 0xFFFFFF, panel = 0x000000, ok = 0xFFFFFF,
-           err = 0xFFFFFF, keyBg = 0xFFFFFF, keyFg = 0x000000 }
+    UI = { bg = BLACK, fg = WHITE, dim = WHITE, accent = WHITE, bar = WHITE, barFg = BLACK,
+           selBg = WHITE, selFg = BLACK, field = BLACK, fieldFg = WHITE, focus = WHITE,
+           focusFg = BLACK, btn = BLACK, btnFg = WHITE, panel = BLACK, ok = WHITE,
+           err = WHITE, keyBg = WHITE, keyFg = BLACK }
   else
-    UI = { bg = 0x000000, fg = 0xE6E6E6, dim = 0x8C8C8C, accent = 0xFFCC33, bar = 0xB30000, barFg = 0xFFFFFF,
-           selBg = 0xFFCC33, selFg = 0x000000, field = 0x333333, fieldFg = 0xFFFFFF, focus = 0xFFFFFF,
-           focusFg = 0x000000, btn = 0x333333, btnFg = 0xFFFFFF, panel = 0x333333, ok = 0x33CC33,
-           err = 0xFF3333, keyBg = 0xFFCC33, keyFg = 0x000000 }
+    UI = { bg = BLACK, fg = WHITE, dim = LGRAY, accent = YELLOW, bar = RED, barFg = WHITE,
+           selBg = YELLOW, selFg = BLACK, field = DGRAY, fieldFg = WHITE, focus = WHITE,
+           focusFg = BLACK, btn = DGRAY, btnFg = WHITE, panel = DGRAY, ok = GREEN,
+           err = RED, keyBg = YELLOW, keyFg = BLACK }
   end
 end
 
@@ -1129,7 +1181,7 @@ local function runForm(spec)
       put(pv.x, pv.y, clip("Preview error: " .. tostring(lines), pv.w), UI.err, UI.bg)
       return
     end
-    fill(pv.x, pv.y, pv.w, pv.h, bg or 0x000000)
+    fill(pv.x, pv.y, pv.w, pv.h, bg or BLACK)
     for i = 1, math.min(#lines, pv.h) do drawLine(lines[i], pv.x, pv.y + i - 1, lw or pv.w) end
   end
 
@@ -1273,7 +1325,7 @@ local function realColumnWidth(m, w)
 end
 
 local function previewBlocks(m, list, w)
-  local bg = col(m.settings.background, 0x000000)
+  local bg = col(m.settings.background, BLACK)
   w = realColumnWidth(m, w)
   local lines = {}
   for _, b in ipairs(list) do
@@ -1282,7 +1334,7 @@ local function previewBlocks(m, list, w)
       for _, ln in ipairs(f(b, m, w, bg)) do lines[#lines + 1] = ln end
     elseif b.type == "colbreak" then
       local ln = mkLine()
-      seg(ln, 1, "(the menu continues in the next column or page)", 0x878787, bg)
+      seg(ln, 1, "(the menu continues in the next column or page)", LGRAY, bg)
       lines[#lines + 1] = ln
     end
   end
@@ -1294,7 +1346,7 @@ local function previewStyle(m, key, vals, w)
   local tmp = { settings = m.settings, styles = {} }
   for k, v in pairs(m.styles) do tmp.styles[k] = v end
   tmp.styles[key] = vals
-  local bg = col(m.settings.background, 0x000000)
+  local bg = col(m.settings.background, BLACK)
   local dw, dh = displaySize(m)
   if key == "banner" then
     w = math.min(w, dw)
@@ -1531,7 +1583,7 @@ local function editSettings(m)
     fields = settingsFields(), values = m.settings,
     preview = function(v, w)
       local tmp = { settings = v, styles = m.styles }
-      local bg = col(v.background, 0x000000)
+      local bg = col(v.background, BLACK)
       local dw, dh = displaySize(tmp)
       w = math.min(w, dw)
       local lines = headerLines(tmp, w, dh, bg)
