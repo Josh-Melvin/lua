@@ -173,12 +173,18 @@ local function isHeading(t) return t == "h1" or t == "h2" or t == "h3" end
 ---------------------------------------------------------------------------
 local DEFAULT_MENU = {
   settings = {
-    title = "Burger Block",
-    subtitle = "Fresh  *  Fast  *  Tasty",
-    footer = "Open daily  *  Combos come with fries & a drink  *  Ask us about allergens",
-    currency = "$", currencyPos = "before",
-    columns = 2, colLines = true, background = "Black",
-    width = 0, height = 0, pageSeconds = 10, pin = "",
+    title = "McDonald's",
+    subtitle = "",
+    footer = "2,000 calories a day is used for general nutrition advice, but calorie needs vary.",
+    currency = "$",
+    currencyPos = "before",
+    columns = 4,
+    colLines = true,
+    background = "Black",
+    width = 0,
+    height = 0,
+    pageSeconds = 10,
+    pin = "",
   },
   styles = {
     banner    = { fg = "Yellow", bg = "Dark Red", subFg = "White", size = "auto", align = "center" },
@@ -193,27 +199,63 @@ local DEFAULT_MENU = {
     footer    = { fg = "Black", bg = "Yellow", align = "center" },
   },
   blocks = {
-    { type = "h2", text = "Burgers" },
-    { type = "item", name = "Classic Burger", price = "4.99", desc = "Beef patty, lettuce, tomato, house sauce" },
-    { type = "item", name = "Double Cheese", price = "6.49", desc = "Two patties, double cheddar, pickles", tag = "BEST" },
-    { type = "item", name = "Creeper Crunch", price = "5.99", desc = "Crispy chicken, green pepper relish", tag = "NEW" },
-    { type = "item", name = "Veggie Melt", price = "5.49", desc = "Grilled mushroom & beetroot patty" },
-    { type = "h2", text = "Sides" },
-    { type = "item", name = "Fries", price = "1.99", desc = "Large +0.80" },
-    { type = "item", name = "Onion Rings", price = "2.49" },
-    { type = "item", name = "Nuggets (6 pc)", price = "3.29", soldOut = true },
-    { type = "h3", text = "Dipping sauces" },
-    { type = "paragraph", text = "Ketchup, mustard, BBQ or spicy mayo. One free with every side!" },
+    { type = "h2", text = "Combo Meals" },
+    { type = "paragraph", text = "Meals include medium fries or side salad and a medium soft drink. A different drink or side costs extra." },
+    { type = "item", name = "#1 Big Mac", price = "9.29", desc = "Meal 560-1140 Cal.\\nItem only $5.39 · 540 Cal." },
+    { type = "item", name = "#2 Quarter Pounder with Cheese", price = "9.59", desc = "Meal 530-1110 Cal.\\nItem only $5.69 · 510 Cal." },
+    { type = "item", name = "Quarter Pounder with Cheese Bacon", price = "10.59", desc = "Meal 630-1210 Cal.\\nItem only $6.79 · 610 Cal." },
+    { type = "item", name = "Quarter Pounder Deluxe", price = "10.19", desc = "Meal 640-1220 Cal.\\nItem only $6.49 · 620 Cal." },
+    { type = "item", name = "#3 Double Quarter Pounder with Cheese", price = "10.69", desc = "Meal 740-1320 Cal.\\nItem only $6.89 · 720 Cal." },
+    { type = "item", name = "#4 Buttermilk Crispy Chicken", price = "9.49", desc = "Meal 620-1200 Cal.\\nItem only $5.59 · 600 Cal." },
+    { type = "item", name = "#5 Artisan Grilled Chicken", price = "9.59", desc = "Meal 460-1040 Cal.\\nItem only $5.69 · 440 Cal." },
+    { type = "item", name = "#6 10 pc. Chicken McNuggets", price = "9.19", desc = "Meal 440-1020 Cal.\\nItem only $5.79 · 420 Cal." },
+    { type = "item", name = "#7 Filet-O-Fish", price = "8.59", desc = "Meal 400-980 Cal.\\nItem only $4.99 · 380 Cal." },
+    { type = "item", name = "#8 4 pc. Buttermilk Crispy Tenders", price = "8.09", desc = "Meal 500-1080 Cal.\\nItem only $4.79 · 480 Cal." },
+    { type = "item", name = "#9 2 Cheeseburgers", price = "6.69", desc = "Meal 620-1200 Cal.\\nItem only $2.98 · 600 Cal." },
+    { type = "h2", text = "Sweets & Treats" },
+    { type = "note", text = "BACK SOON" },
+    { type = "h2", text = "Fries, Sides & More" },
+    { type = "item", name = "McDouble", price = "1.99", desc = "380 Cal." },
+    { type = "item", name = "Soft Drinks", price = "1.00", desc = "Medium · 0-280 Cal." },
+    { type = "item", name = "Fries", price = "2.99", desc = "Medium · 320 Cal." },
+    { type = "item", name = "20 pc. McNuggets", price = "7.99", desc = "Serves 2 · 830 Cal. each serving" },
+    { type = "item", name = "Hash Browns", price = "2.29", desc = "150 Cal." },
+    { type = "item", name = "Sweet Tea", price = "1.00", desc = "Medium · 200 Cal." },
     { type = "colbreak" },
-    { type = "h2", text = "Drinks" },
-    { type = "item", name = "Soda", price = "1.49", desc = "Cola, lemon-lime or orange" },
-    { type = "item", name = "Iced Tea", price = "1.29" },
-    { type = "item", name = "Milkshake", price = "3.49", desc = "Vanilla, chocolate or strawberry" },
-    { type = "h2", text = "Combos" },
-    { type = "item", name = "Burger Combo", price = "7.99", desc = "Any burger + fries + soda", tag = "DEAL" },
-    { type = "item", name = "Family Box", price = "2 for $15", desc = "2 burgers, 2 fries, 2 drinks, nuggets" },
+    { type = "h2", text = "All Day Breakfast" },
+    { type = "item", name = "Egg McMuffin", price = "4.49", desc = "300 Cal." },
+    { type = "item", name = "Sausage McMuffin with Egg", price = "4.49", desc = "480 Cal." },
+    { type = "item", name = "Sausage McMuffin", price = "1.99", desc = "400 Cal." },
+    { type = "h2", text = "Featured Burger" },
+    { type = "item", name = "Bacon BBQ Burger", price = "9.89", desc = "Meal 730-1310 Cal.\\nItem only $6.09 · 710 Cal." },
+    { type = "item", name = "Double Bacon BBQ Burger", price = "11.09", desc = "Meal 940-1520 Cal.\\nItem only $7.29 · 920 Cal." },
+    { type = "h2", text = "McCafé" },
+    { type = "item", name = "Premium Roast Coffee", price = "1.99", desc = "0 Cal." },
+    { type = "item", name = "Iced Caramel Macchiato*", price = "3.39", desc = "250 Cal." },
+    { type = "item", name = "Frappé", price = "3.99", desc = "Mocha or caramel · 510 Cal." },
+    { type = "item", name = "Smoothie", price = "3.49", desc = "Strawberry banana · 240 Cal." },
+    { type = "item", name = "Mocha*", price = "3.29", desc = "380 Cal." },
+    { type = "item", name = "Pies", price = "1.19", desc = "Apple · 250 Cal." },
+    { type = "paragraph", text = "Drink prices are for a medium. *Made with whole milk; nonfat milk subtracts 30-150 Cal." },
+    { type = "colbreak" },
+    { type = "h2", text = "Happy Meal" },
+    { type = "paragraph", text = "Choose a meal with kids fries:" },
+    { type = "item", name = "4 pc. Chicken McNuggets", price = "4.49", desc = "295-425 Cal." },
+    { type = "item", name = "6 pc. Chicken McNuggets", price = "", desc = "375-505 Cal." },
+    { type = "item", name = "Hamburger", price = "3.99", desc = "375-505 Cal." },
+    { type = "paragraph", text = "Sauces add 30-110 Cal. each." },
+    { type = "h3", text = "Choose a side" },
+    { type = "paragraph", text = "Apple Slices  ·  Go-GURT" },
+    { type = "h3", text = "Choose a drink" },
+    { type = "paragraph", text = "Honest Kids Organic Apple Juice Drink  ·  White Milk  ·  DASANI Water" },
+    { type = "paragraph", text = "Additional charges may apply." },
+    { type = "h2", text = "$1 | $2 | $3 Dollar Menu" },
+    { type = "item", name = "Any Size Soft Drink", price = "1", desc = "S 0-220 · M 0-280 · L 0-350 Cal." },
+    { type = "item", name = "Any Size Sweet Tea", price = "1", desc = "S 170 · M 200 · L 280 Cal." },
+    { type = "item", name = "6 pc. McNuggets", price = "2", desc = "250 Cal." },
+    { type = "item", name = "2 McDouble Burgers", price = "3", desc = "760 Cal." },
     { type = "divider" },
-    { type = "note", text = "Upgrade any combo to a milkshake for $1.50" },
+    { type = "paragraph", text = "Food allergy? Our food may contain or have touched allergens including eggs, fish, milk, peanuts, shellfish, soy, tree nuts and wheat." },
   },
 }
 
@@ -308,6 +350,12 @@ local FONT = {
   [")"] = "42224", ["="] = "07070",
 }
 local BITS = { 4, 2, 1 }
+-- accented capitals fall back to the plain letter (CAFÉ -> CAFE)
+local FOLD = {
+  ["À"] = "A", ["Á"] = "A", ["Â"] = "A", ["Ä"] = "A", ["Ç"] = "C", ["È"] = "E", ["É"] = "E",
+  ["Ê"] = "E", ["Ë"] = "E", ["Í"] = "I", ["Î"] = "I", ["Ñ"] = "N", ["Ó"] = "O", ["Ô"] = "O",
+  ["Ö"] = "O", ["Ú"] = "U", ["Ü"] = "U",
+}
 
 local function bigTextWidth(s, scale)
   local n = ulen(s)
@@ -318,12 +366,13 @@ end
 -- Returns screen lines built from half-block characters (▀ ▄ █).
 local function bigText(s, scale)
   scale = scale or 1
-  s = s:upper()
+  s = unicode.upper(s)
   local n = ulen(s)
   local grid = {}
   for r = 1, 5 * scale do grid[r] = {} end
   for i = 1, n do
-    local glyph = FONT[usub(s, i, i)] or FONT["?"]
+    local ch = usub(s, i, i)
+    local glyph = FONT[ch] or FONT[FOLD[ch] or ""] or FONT["?"]
     for r = 1, 5 do
       local v = tonumber(glyph:sub(r, r))
       for _, bit in ipairs(BITS) do
@@ -369,7 +418,7 @@ local function headingLines(b, st, w, pageBg)
   local text = trim(b.text)
   if text == "" then return lines end
   blankLines(lines, st.space)
-  if st.upper then text = text:upper() end
+  if st.upper then text = unicode.upper(text) end
   local fg = col(st.fg, 0xFFFFFF)
   local bgSet = st.bg ~= nil and st.bg ~= "None"
   local bg = col(st.bg, pageBg)
@@ -482,7 +531,7 @@ local function itemLines(b, m, w, pageBg)
   end
   if ulen(price) > w then price = usub(price, 1, w) end
   local name = trim(b.name)
-  if st.upper then name = name:upper() end
+  if st.upper then name = unicode.upper(name) end
   local tag = trim(b.tag)
   tag = tag ~= "" and (" " .. tag .. " ") or ""
   local pw, tw = ulen(price), ulen(tag)
@@ -590,7 +639,7 @@ local function headerLines(m, W, H, pageBg)
       end
       if scale == 2 and sub ~= "" then lines[#lines + 1] = mkLine(bg) end
     else
-      local t = title:upper()
+      local t = unicode.upper(title)
       local chars = {}
       for i = 1, ulen(t) do chars[i] = usub(t, i, i) end
       local spaced = table.concat(chars, " ")
